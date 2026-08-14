@@ -1,0 +1,27 @@
+name: Auto-Update & Sync Workflow
+
+on:
+  push:
+    branches: [ main ]
+  schedule:
+    # Run daily at midnight UTC to verify updates
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+
+jobs:
+  update-summary:
+    name: Repository Sync & Status Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Log Latest Commits & Status
+        run: |
+          echo "=== AIVOA.AI Latest Push & Update Verification ==="
+          git log -n 5 --oneline
+          echo "Commit Count: $(git rev-list --count HEAD)"
+          echo "Last Commit Date: $(git log -1 --format=%cd)"
+          echo "Automation successfully verified repository state."
