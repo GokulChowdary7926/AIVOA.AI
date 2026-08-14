@@ -16,7 +16,7 @@
     "react-redux": "^9.1.2"
   },
   "devDependencies": {
-    "@vitejs/plugin-react": "^4.3.1",
+    "@vitejs/plugin-react": "^6.0.5",
     "vite": "^5.4.6"
   }
 }
