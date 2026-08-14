@@ -4,5 +4,5 @@ sqlalchemy>=2.0.35
 pypdf>=4.3.0
 langgraph>=0.2.0
 langchain-groq>=0.1.9
-pydantic-settings>=2.4.0
+pydantic-settings>=2.15.0
 python-multipart>=0.0.9
