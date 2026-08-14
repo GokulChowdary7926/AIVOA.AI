@@ -10,9 +10,14 @@ class ComplaintTextIn(BaseModel):
 class ComplaintUpdateIn(BaseModel):
     customer_name: Optional[str] = None
     product_name: Optional[str] = None
+    product_strength: Optional[str] = None
     batch_number: Optional[str] = None
+    mfg_date: Optional[str] = None
+    expiry_date: Optional[str] = None
+    quantity_affected: Optional[str] = None
     complaint_type: Optional[str] = None
     severity: Optional[str] = None
+    priority: Optional[str] = None
     complaint_description: Optional[str] = None
     complaint_date: Optional[str] = None
     regulatory_reportable: Optional[bool] = None
@@ -26,9 +31,14 @@ class ComplaintOut(BaseModel):
     raw_text: Optional[str]
     customer_name: Optional[str]
     product_name: Optional[str]
+    product_strength: Optional[str]
     batch_number: Optional[str]
+    mfg_date: Optional[str]
+    expiry_date: Optional[str]
+    quantity_affected: Optional[str]
     complaint_type: Optional[str]
     severity: Optional[str]
+    priority: Optional[str]
     complaint_description: Optional[str]
     complaint_date: Optional[str]
     regulatory_reportable: Optional[bool]

@@ -20,9 +20,14 @@ class Complaint(Base):
     # Extracted / logged fields (populate "Log Customer Complaint" form)
     customer_name = Column(String(255))
     product_name = Column(String(255))
+    product_strength = Column(String(100)) # e.g. 6mg/mL, 500mg USP
     batch_number = Column(String(100))
+    mfg_date = Column(String(50))
+    expiry_date = Column(String(50))
+    quantity_affected = Column(String(100))
     complaint_type = Column(String(100))   # Quality Defect, Packaging, Adverse Event, etc.
     severity = Column(String(50))           # Low, Medium, High, Critical
+    priority = Column(String(50))           # Low, Medium, High, Urgent
     complaint_description = Column(Text)
     complaint_date = Column(String(50))     # Date of event/occurrence
     regulatory_reportable = Column(Boolean, default=False)

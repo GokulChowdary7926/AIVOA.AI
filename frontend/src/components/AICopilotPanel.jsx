@@ -1,224 +1,304 @@
-import React from "react";
-import { useSelector } from "react-redux";
+import React, { useState } from "react";
+import { useSelector, useDispatch } from "react-redux";
+import {
+  submitTextComplaint,
+  submitFileComplaint,
+} from "../store/complaintSlice.js";
+import { SAMPLE_COMPLAINTS } from "../data/sampleData.js";
 
 const riskBadgeClass = (level) => {
   switch ((level || "").toLowerCase()) {
-    case "low":
-      return "badge badge-low";
-    case "medium":
-      return "badge badge-medium";
-    case "high":
-      return "badge badge-high";
-    case "critical":
-      return "badge badge-critical";
-    default:
-      return "badge";
+    case "low": return "badge badge-low";
+    case "medium": return "badge badge-medium";
+    case "high": return "badge badge-high";
+    case "critical": return "badge badge-critical";
+    default: return "badge";
   }
 };
 
 export default function AICopilotPanel() {
+  const dispatch = useDispatch();
   const { activeComplaint, status } = useSelector((s) => s.complaints);
+  const [showPasteModal, setShowPasteModal] = useState(false);
+  const [pasteText, setPasteText] = useState("");
+  const [chatMessage, setChatMessage] = useState("");
+  const [chatLog, setChatLog] = useState([]);
+  const [isDragOver, setIsDragOver] = useState(false);
 
-  if (status === "loading") {
-    return (
-      <div className="panel copilot-panel loading-state">
-        <div className="panel-header">
-          <h2>AI Copilot — Risk Assessment</h2>
-          <span className="subtitle-tag">Groq LLM + LangGraph Pipeline</span>
-        </div>
-        <div className="copilot-skeleton">
-          <div className="skeleton-line pulse"></div>
-          <div className="skeleton-card pulse"></div>
-          <div className="skeleton-card pulse"></div>
-          <p className="loading-text">
-            Analyzing QMS severity, matching duplicate batches, and drafting 5M root cause & CAPA plan...
-          </p>
-        </div>
-      </div>
-    );
-  }
+  const isLoading = status === "loading";
 
-  if (!activeComplaint) {
-    return (
-      <div className="panel copilot-panel empty-state">
-        <div className="panel-header">
-          <h2>AI Copilot — Risk Assessment</h2>
-          <span className="subtitle-tag">QMS Intelligence Engine</span>
-        </div>
-        <div className="empty-content">
-          <div className="empty-icon">🤖</div>
-          <h3>No Complaint Active</h3>
-          <p>
-            Paste a complaint or click a <strong>Demo Quick Preset</strong> on the left form to execute the LangGraph AI copilot and view real-time QMS risk analysis.
-          </p>
-        </div>
-      </div>
-    );
-  }
+  const handleFileUpload = (f) => {
+    if (!f || isLoading) return;
+    dispatch(submitFileComplaint(f));
+  };
 
-  const {
-    completeness_score,
-    risk_classification,
-    duplicate_matches,
-    root_cause_suggestion,
-    capa_suggestion,
-    ai_summary,
-  } = activeComplaint;
+  const handlePasteSubmit = () => {
+    if (!pasteText.trim() || isLoading) return;
+    dispatch(submitTextComplaint(pasteText));
+    setShowPasteModal(false);
+    setPasteText("");
+  };
 
-  const scoreVal = completeness_score?.score ?? 85;
-  const isFieldAlert = risk_classification?.requires_field_alert || activeComplaint.regulatory_reportable;
+  const handleRunPreset = (sample) => {
+    dispatch(submitTextComplaint(sample.text));
+  };
+
+  const handleSendChat = (e) => {
+    e.preventDefault();
+    if (!chatMessage.trim()) return;
+    
+    const userMsg = chatMessage;
+    setChatMessage("");
+    
+    // Add user message
+    const newLogs = [...chatLog, { sender: "user", text: userMsg }];
+    setChatLog(newLogs);
+
+    // AI Response logic
+    setTimeout(() => {
+      let aiAns = "I have analyzed the complaint. ";
+      const msgLower = userMsg.toLowerCase();
+      if (msgLower.includes("risk") || msgLower.includes("severity")) {
+        aiAns += `The AI Risk Assessment classified this complaint as ${activeComplaint?.risk_classification?.level || activeComplaint?.severity || "Medium"} risk. ${activeComplaint?.risk_classification?.justification || ""}`;
+      } else if (msgLower.includes("root cause") || msgLower.includes("5m")) {
+        aiAns += `Likely 5M root cause categories are ${activeComplaint?.root_cause_suggestion?.likely_categories?.join(", ") || "Machine, Material"}. Reasoning: ${activeComplaint?.root_cause_suggestion?.reasoning || ""}`;
+      } else if (msgLower.includes("capa") || msgLower.includes("owner")) {
+        aiAns += `Suggested CAPA owner is ${activeComplaint?.capa_suggestion?.suggested_owner || "QA Compliance Lead"} with a target closure of ${activeComplaint?.capa_suggestion?.target_closure_days || 30} days.`;
+      } else {
+        aiAns += `This complaint regarding ${activeComplaint?.product_name || "the drug product"} (Batch #${activeComplaint?.batch_number || "N/A"}) has been triaged and recorded in the QMS database.`;
+      }
+
+      setChatLog([...newLogs, { sender: "ai", text: aiAns }]);
+    }, 600);
+  };
+
+  const c = activeComplaint;
+  const scoreVal = c?.completeness_score?.score ?? (isLoading ? 10 : 0);
+  const isFieldAlert = c?.risk_classification?.requires_field_alert || c?.regulatory_reportable;
 
   return (
-    <div className="panel copilot-panel">
-      <div className="panel-header">
-        <h2>AI Copilot — Risk Assessment</h2>
-        <span className="subtitle-tag">Live LangGraph QMS Assessment</span>
+    <div className="panel copilot-panel-spec">
+      {/* Panel Header */}
+      <div className="spec-copilot-header">
+        <div className="title-with-icon">
+          <span className="sparkle-icon">✨</span>
+          <h2>AI Complaint Intake Assistant</h2>
+        </div>
+        <span className="beta-badge">BETA</span>
       </div>
 
-      {/* Field Alert Warning Banner */}
-      {isFieldAlert && (
-        <div className="field-alert-banner">
-          <span className="alert-icon">⚠️</span>
+      {/* Top File Upload Dropzone */}
+      <div
+        className={`spec-dropzone ${isDragOver ? "drag-over" : ""}`}
+        onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
+        onDragLeave={() => setIsDragOver(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setIsDragOver(false);
+          if (e.dataTransfer.files?.[0]) handleFileUpload(e.dataTransfer.files[0]);
+        }}
+      >
+        <div className="cloud-icon">☁️</div>
+        <div>
+          <strong>Drag & drop complaint document here</strong>
+          <br />
+          <span className="browse-link">or click to browse</span>
+        </div>
+        <input
+          type="file"
+          accept=".pdf,.txt,.eml,.docx"
+          className="file-input-hidden"
+          onChange={(e) => handleFileUpload(e.target.files?.[0])}
+        />
+      </div>
+
+      <div className="or-divider">OR</div>
+
+      {/* Paste Complaint Text Button */}
+      <button className="btn-paste-spec" onClick={() => setShowPasteModal(true)}>
+        📄 Paste Complaint Text / Email
+      </button>
+
+      {/* Supported Formats Info Banner */}
+      <div className="info-banner-spec">
+        <span className="info-icon">ℹ️</span>
+        <span>Supported formats: PDF, DOCX, TXT, EML | Max file size: 10MB</span>
+      </div>
+
+      {/* Preset Quick Loader Bar */}
+      <div className="presets-bar-spec">
+        <span className="preset-label">⚡ Quick Samples:</span>
+        {SAMPLE_COMPLAINTS.map((s) => (
+          <button
+            key={s.id}
+            className={`preset-chip chip-${s.risk.toLowerCase()}`}
+            onClick={() => handleRunPreset(s)}
+            disabled={isLoading}
+          >
+            {s.risk}: {s.product.split(" ")[0]}
+          </button>
+        ))}
+      </div>
+
+      {/* Extraction Progress Bar */}
+      <div className="progress-section-spec">
+        <div className="progress-label-row">
+          <span className="progress-title">EXTRACTION PROGRESS</span>
+          <span className="progress-pct">{isLoading ? "45%" : c ? "100%" : "0%"}</span>
+        </div>
+        <div className="progress-track-spec">
+          <div
+            className="progress-fill-spec"
+            style={{ width: isLoading ? "45%" : c ? "100%" : "0%" }}
+          ></div>
+        </div>
+        <p className="progress-subtext">
+          {isLoading
+            ? "Analyzing document content and extracting key details... Please wait, this may take a few moments."
+            : c
+            ? "Extraction & QMS risk assessment complete."
+            : "Awaiting document upload or text paste to begin extraction."}
+        </p>
+      </div>
+
+      {/* AI Assistant Guidance & Risk Assessment Content */}
+      <div className="ai-assistant-card">
+        <div className="assistant-header">
+          <span className="assistant-avatar">🤖</span>
           <div>
-            <strong>21 CFR Part 211 / Regulatory Field Alert Warning</strong>
-            <p>Mandatory 15-day regulatory notification triggered due to sterility/subpotency/patient safety defect.</p>
+            <strong>AI ASSISTANT & QMS COPILOT</strong>
+            <p>Automated first-pass triage & QMS compliance recommendations.</p>
           </div>
+        </div>
+
+        {!c ? (
+          <p className="assistant-prompt">
+            Upload a complaint document or paste text above. I will automatically extract the details and populate the form for you.
+          </p>
+        ) : (
+          <div className="copilot-results-spec">
+            {/* Field Alert Banner */}
+            {isFieldAlert && (
+              <div className="field-alert-banner">
+                <span className="alert-icon">⚠️</span>
+                <div>
+                  <strong>21 CFR Part 211 / FDA Field Alert Triggered</strong>
+                  <p>Mandatory 15-day Field Alert Notice required for sterility/subpotency/patient safety risk.</p>
+                </div>
+              </div>
+            )}
+
+            {/* Risk Badge & Rationale */}
+            <div className="copilot-block">
+              <div className="block-title-row">
+                <span>AI Risk Level</span>
+                <span className={riskBadgeClass(c.risk_classification?.level || c.severity)}>
+                  {(c.risk_classification?.level || c.severity || "Medium").toUpperCase()}
+                </span>
+              </div>
+              <p className="block-desc">{c.risk_classification?.justification}</p>
+            </div>
+
+            {/* Completeness score */}
+            <div className="copilot-block">
+              <div className="block-title-row">
+                <span>Record Completeness</span>
+                <span className="score-pill">{scoreVal}/100</span>
+              </div>
+              {c.completeness_score?.missing_fields?.length > 0 && (
+                <div className="missing-pills">
+                  {c.completeness_score.missing_fields.map((m) => (
+                    <span key={m} className="pill-missing-sm">{m}</span>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Duplicate Matches */}
+            {c.duplicate_matches?.length > 0 && (
+              <div className="copilot-block">
+                <div className="block-title-row">
+                  <span>Duplicate Matches</span>
+                  <span className="dup-count">{c.duplicate_matches.length} Match(es)</span>
+                </div>
+                {c.duplicate_matches.map((d, i) => (
+                  <p key={i} className="dup-item">
+                    <strong>#{d.id?.slice(0, 8)}</strong>: {d.reason}
+                  </p>
+                ))}
+              </div>
+            )}
+
+            {/* 5M Root Cause */}
+            {c.root_cause_suggestion && (
+              <div className="copilot-block">
+                <div className="block-title-row">
+                  <span>5M Root Cause</span>
+                  <span className="m5-tags">
+                    {(c.root_cause_suggestion.likely_categories || []).join(", ")}
+                  </span>
+                </div>
+                <p className="block-desc">{c.root_cause_suggestion.reasoning}</p>
+              </div>
+            )}
+
+            {/* Executive Summary */}
+            {c.ai_summary && (
+              <div className="copilot-block">
+                <div className="block-title-row">
+                  <span>Executive Summary</span>
+                </div>
+                <p className="block-desc">{c.ai_summary}</p>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Chat Log History */}
+      {chatLog.length > 0 && (
+        <div className="chat-log-box">
+          {chatLog.map((msg, i) => (
+            <div key={i} className={`chat-bubble bubble-${msg.sender}`}>
+              <strong>{msg.sender === "user" ? "You" : "AI Copilot"}:</strong> {msg.text}
+            </div>
+          ))}
         </div>
       )}
 
-      {/* Executive Summary */}
-      <div className="copilot-card summary-card">
-        <div className="card-header">
-          <h3>Executive Summary</h3>
-          <span className="card-tag">LangGraph Node #7</span>
-        </div>
-        <p className="summary-text">{ai_summary || "Processing executive summary..."}</p>
-      </div>
+      {/* Interactive Bottom Chat Input */}
+      <form onSubmit={handleSendChat} className="chat-input-row">
+        <input
+          type="text"
+          className="chat-input"
+          placeholder="Ask me anything about this complaint..."
+          value={chatMessage}
+          onChange={(e) => setChatMessage(e.target.value)}
+        />
+        <button type="submit" className="btn-chat-send" title="Send message">
+          ✈️
+        </button>
+      </form>
+      <span className="chat-disclaimer">AI responses may contain errors. Please verify information.</span>
 
-      {/* Risk Classification */}
-      <div className="copilot-card risk-card">
-        <div className="card-header">
-          <h3>Risk Classification & Regulatory Impact</h3>
-          <span className={riskBadgeClass(risk_classification?.level || activeComplaint.severity)}>
-            {(risk_classification?.level || activeComplaint.severity || "Medium").toUpperCase()}
-          </span>
-        </div>
-        <p className="justification-text">{risk_classification?.justification}</p>
-      </div>
-
-      {/* Completeness Check */}
-      <div className="copilot-card completeness-card">
-        <div className="card-header">
-          <h3>QMS Record Completeness Score</h3>
-          <div className="score-badge">{scoreVal} / 100</div>
-        </div>
-        <div className="progress-bar-bg">
-          <div
-            className={`progress-bar-fill ${scoreVal >= 80 ? "fill-high" : scoreVal >= 50 ? "fill-med" : "fill-low"}`}
-            style={{ width: `${scoreVal}%` }}
-          ></div>
-        </div>
-        {completeness_score?.missing_fields?.length > 0 ? (
-          <div className="missing-box">
-            <span className="box-label">Missing Required Fields:</span>
-            <div className="pill-list">
-              {completeness_score.missing_fields.map((f) => (
-                <span key={f} className="pill pill-missing">
-                  {f}
-                </span>
-              ))}
+      {/* Paste Modal */}
+      {showPasteModal && (
+        <div className="modal-backdrop" onClick={() => setShowPasteModal(false)}>
+          <div className="modal-content-sm" onClick={(e) => e.stopPropagation()}>
+            <h3>Paste Complaint Text / Email</h3>
+            <textarea
+              rows={6}
+              value={pasteText}
+              onChange={(e) => setPasteText(e.target.value)}
+              placeholder="Paste raw customer email or quality complaint notice here..."
+            />
+            <div className="modal-actions">
+              <button className="btn-secondary" onClick={() => setShowPasteModal(false)}>Cancel</button>
+              <button className="btn-primary" onClick={handlePasteSubmit}>Process Text with AI</button>
             </div>
           </div>
-        ) : (
-          <p className="complete-note">✓ Record contains all critical QMS compliance fields.</p>
-        )}
-        {completeness_score?.notes && <p className="notes-text">💡 {completeness_score.notes}</p>}
-      </div>
-
-      {/* Duplicate Complaint Detection */}
-      <div className="copilot-card duplicate-card">
-        <div className="card-header">
-          <h3>Duplicate Complaint Detection</h3>
-          <span className="card-tag">Batch & Symptom Cross-Matching</span>
         </div>
-        {(duplicate_matches || []).length === 0 ? (
-          <p className="no-matches">No duplicate complaints detected in recent batch database records.</p>
-        ) : (
-          <div className="matches-list">
-            {(duplicate_matches || []).map((m, idx) => (
-              <div key={idx} className="match-item">
-                <div className="match-header">
-                  <span className="match-id">Match #{m.id?.slice(0, 8)}</span>
-                  <span className={`confidence-pill conf-${(m.confidence || "Medium").toLowerCase()}`}>
-                    {m.confidence} Confidence
-                  </span>
-                </div>
-                <p className="match-reason">{m.reason}</p>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Root Cause Recommendation */}
-      <div className="copilot-card root-cause-card">
-        <div className="card-header">
-          <h3>Root Cause Analysis (5M QMS Methodology)</h3>
-          <span className="card-tag">Fishbone / Ishikawa</span>
-        </div>
-        <div className="pill-list categories-list">
-          {(root_cause_suggestion?.likely_categories || ["Machine", "Material"]).map((c) => (
-            <span key={c} className="pill pill-5m">
-              {c}
-            </span>
-          ))}
-        </div>
-        <p className="reasoning-text">{root_cause_suggestion?.reasoning}</p>
-
-        {root_cause_suggestion?.recommended_investigation_steps?.length > 0 && (
-          <div className="steps-box">
-            <span className="box-label">Recommended Investigation Protocol:</span>
-            <ol className="investigation-steps">
-              {root_cause_suggestion.recommended_investigation_steps.map((step, idx) => (
-                <li key={idx}>{step}</li>
-              ))}
-            </ol>
-          </div>
-        )}
-      </div>
-
-      {/* CAPA Recommendation */}
-      <div className="copilot-card capa-card">
-        <div className="card-header">
-          <h3>Draft CAPA Action Plan</h3>
-          <span className="owner-badge">Owner: {capa_suggestion?.suggested_owner || "QA Lead"}</span>
-        </div>
-        <div className="capa-grid">
-          <div className="capa-box corrective">
-            <span className="box-title">Corrective Actions (Immediate)</span>
-            <ul>
-              {(capa_suggestion?.corrective_actions || ["Quarantine affected batch", "Inspect retain samples"]).map(
-                (act, i) => (
-                  <li key={i}>{act}</li>
-                )
-              )}
-            </ul>
-          </div>
-          <div className="capa-box preventive">
-            <span className="box-title">Preventive Actions (Long-Term)</span>
-            <ul>
-              {(capa_suggestion?.preventive_actions || ["Update line clearance SOP", "Calibrate vision sensors"]).map(
-                (act, i) => (
-                  <li key={i}>{act}</li>
-                )
-              )}
-            </ul>
-          </div>
-        </div>
-        <div className="closure-target">
-          Target Closure Timeline: <strong>{capa_suggestion?.target_closure_days || 30} Days</strong>
-        </div>
-      </div>
+      )}
     </div>
   );
 }
