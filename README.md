@@ -1,104 +1,161 @@
-# AIVOA.AI — AI-Powered Customer Complaint Management System (Starter Scaffold)
+# 🛡️ AIVOA.AI — AI-Powered Customer Complaint Management System
 
-This is a **starter scaffold**, not the finished assignment. It implements the
-full end-to-end skeleton — frontend, API, DB models, and a real LangGraph +
-Groq AI workflow — so the actual functional details can be built out on top
-of it (e.g. in Google Antigravity / Claude Code) to match the demo video
-exactly.
+Production-ready, end-to-end AI-powered Customer Complaint Management System tailored for the pharmaceutical industry, complying with **GMP, 21 CFR Part 211, and ICH Q10 guidelines**.
 
-## What's already wired up
+The system features a **React / Redux Toolkit frontend**, **FastAPI backend**, **LangGraph 7-Node Agent Workflow**, **Groq LLM integration (`gemma2-9b-it`)**, and **SQLAlchemy (PostgreSQL / MySQL / SQLite)** database persistence.
 
-- **Frontend**: React 18 + Redux Toolkit (Vite), Google Inter font, a
-  "Log Customer Complaint" form and an "AI Copilot — Risk Assessment" panel
-  that read from Redux state.
-- **Backend**: FastAPI with SQLAlchemy models (Postgres by default, swap
-  connection string for MySQL), endpoints to submit a complaint as raw text
-  or as a PDF/email file upload.
-- **AI Agent**: A real LangGraph `StateGraph` (`backend/app/ai/workflow.py`)
-  with 7 sequential nodes, each calling Groq:
-  1. `extract_fields` — pulls customer, product, batch, complaint type/desc
-  2. `completeness_check` — scores the record + lists missing fields
-  3. `duplicate_detection` — compares against recent complaints in DB
-  4. `risk_classification` — Low/Medium/High/Critical + justification
-  5. `root_cause_recommendation` — QMS root-cause categories (Man/Machine/...)
-  6. `capa_recommendation` — draft corrective/preventive actions
-  7. `summary` — short executive summary
-- Uses `gemma2-9b-it` for lighter extraction/summary nodes and
-  `llama-3.3-70b-versatile` for the reasoning-heavy nodes (risk, root cause,
-  CAPA), per the assignment's suggestion.
+---
 
-## What YOU still need to do to match the demo
+## 🌟 Key Capabilities & Features
 
-1. **Watch the demo video and reference screenshot again** and adjust the
-   exact fields on the "Log Customer Complaint" form to match (there may be
-   more fields than this scaffold has — e.g. complaint date, severity,
-   attachments, regulatory reportability, etc.).
-2. **Refine the LangGraph prompts** in `workflow.py` to match how the demo
-   actually classifies risk / suggests root cause / etc. Watch closely for
-   exact wording, categories, and scoring scales used in the demo.
-3. **Add a proper complaint list / detail view** (`ComplaintList.jsx` is not
-   yet built) so reviewers can browse past complaints, not just the last one.
-4. **Add auth/session handling** if the demo shows a login flow.
-5. **Wire up sample PDFs/emails** — create a few realistic pharma complaint
-   PDFs/emails (see assignment: "you may create your own realistic
-   pharmaceutical complaint PDFs, emails, or images for demonstration").
-6. **Add loading/error states, form validation, and polish** to match the UI
-   screenshot style.
-7. Optional bonus features not yet stubbed out: Complaint Summary is done;
-   consider adding richer duplicate detection (vector similarity instead of
-   just LLM comparison over the last N complaints) if you want to go further.
+1. **Natural Language Complaint Intake & Copilot Agent**:
+   - Accepts raw complaint text, customer emails, or uploaded documents (`.pdf`, `.eml`, `.docx`, `.txt`).
+   - Automatically executes agent tools (`log_complaint`, `document_extraction`, `edit_complaint`) based on natural user intent.
 
-## Running locally
+2. **7-Node LangGraph Pipeline (`backend/app/ai/workflow.py`)**:
+   - **Node 1: `extract_fields`** — Structured field extraction (customer, product, strength, batch #, mfg/exp date, quantity, type, severity, priority, description).
+   - **Node 2: `completeness_check`** — Dynamically scores QMS completeness (0-100) and flags missing required fields.
+   - **Node 3: `duplicate_detection`** — Compares incoming complaints against historical DB records to flag identical batch numbers or duplicate symptoms (returns `[]` on empty DB).
+   - **Node 4: `risk_classification`** — Evaluates GMP/21 CFR patient safety impact strictly based on clinical defect type (ignores emotional tone). Flags mandatory 15-day FDA Field Alerts.
+   - **Node 5: `root_cause_recommendation`** — Evaluates 5M QMS categories (*Man, Machine, Material, Method, Environment*) tailored specifically to defect type.
+   - **Node 6: `capa_recommendation`** — Drafts immediate containment and long-term Corrective and Preventive Actions with suggested department owner and closure timelines.
+   - **Node 7: `summary`** — Generates a 3-sentence executive summary suitable for QMS dashboards.
 
-### Backend
-```bash
-cd backend
-python -m venv venv && source venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env   # fill in GROQ_API_KEY and DATABASE_URL
-uvicorn app.main:app --reload --port 8000
-```
+3. **Autonomous Agent Tool Orchestration (`backend/app/ai/agent.py`)**:
+   - `log_complaint` — Triggered when user submits complaint text + *"please log this complaint"*.
+   - `document_extraction → log_complaint` — Triggered when a PDF or email is uploaded.
+   - `edit_complaint` — Triggered when user asks follow-up edits like *"Sorry, the batch number is actually AZ-9999"*. Patches **ONLY** mentioned fields while preserving all other complaint fields.
 
-Create the Postgres DB first, e.g.:
-```bash
-createdb aivoa_complaints
-```
-(Tables are auto-created on startup via SQLAlchemy `create_all`.)
+---
 
-### Frontend
-```bash
-cd frontend
-npm install
-npm run dev
-```
-Visit http://localhost:5173. Set `VITE_API_BASE` in a `.env` file if your
-backend isn't on `http://localhost:8000`.
-
-## API endpoints
-
-| Method | Path                          | Description                          |
-|--------|-------------------------------|---------------------------------------|
-| POST   | `/api/complaints/from-text`   | Submit raw complaint text for AI processing |
-| POST   | `/api/complaints/from-file`   | Upload a PDF/text/email file for AI processing |
-| GET    | `/api/complaints`             | List all processed complaints         |
-| GET    | `/api/complaints/{id}`        | Get one complaint + AI results        |
-
-## Suggested repo structure for your submission
+## 📁 Repository Structure
 
 ```
 aivoa-complaint-system/
 ├── backend/
-│   └── app/ (config, database, models, schemas, routers, ai/)
+│   ├── app/
+│   │   ├── ai/
+│   │   │   ├── agent.py            # Copilot Agent tool dispatcher & execution
+│   │   │   ├── groq_client.py      # Groq LLM integration (gemma2-9b-it / llama-3.3-70b)
+│   │   │   └── workflow.py         # 7-Node LangGraph StateGraph pipeline
+│   │   ├── routers/
+│   │   │   └── complaints.py       # FastAPI routes (/api/complaints, /upload, /copilot/chat)
+│   │   ├── config.py               # Environment & CORS configuration
+│   │   ├── database.py             # SQLAlchemy session & DB connection
+│   │   ├── main.py                 # FastAPI application entrypoint
+│   │   ├── models.py               # SQLAlchemy Complaint model
+│   │   └── schemas.py              # Pydantic schemas (ComplaintOut, CopilotChatOut)
+│   ├── requirements.txt            # Python backend dependencies
+│   ├── .env.example                # Sample environment variables
+│   └── aivoa_complaints.db         # Local SQLite storage fallback
 ├── frontend/
-│   └── src/ (store, api, components, App.jsx)
+│   ├── src/
+│   │   ├── api/
+│   │   │   └── api.js              # Axios API client
+│   │   ├── components/
+│   │   │   ├── AICopilotPanel.jsx  # Interactive AI Copilot assistant panel
+│   │   │   ├── ComplaintForm.jsx   # Log Customer Complaint form
+│   │   │   ├── ComplaintList.jsx   # Past complaints audit trail & table
+│   │   │   └── ComplaintDetailModal.jsx # Detailed complaint modal inspection
+│   │   ├── data/
+│   │   │   └── sampleData.js       # Pharmaceutical test scenario library
+│   │   ├── store/
+│   │   │   ├── complaintSlice.js   # Redux Toolkit state management
+│   │   │   └── store.js            # Redux store configuration
+│   │   ├── App.jsx                 # Top-level workspace layout & navigation
+│   │   ├── main.jsx                # React root renderer
+│   │   └── index.css               # Modern glassmorphism & responsive CSS
+│   ├── package.json                # Frontend Vite + React dependencies
+│   └── vite.config.js              # Vite server configuration
+├── scripts/
+│   ├── test_agent_tools.py        # Automated test suite for log_complaint, edit_complaint & extraction
+│   └── test_correct_behavior.py   # 7-Node LangGraph QMS specification verification suite
 └── README.md
 ```
 
-## Notes for your demo video
+---
 
-Per the assignment, walk through: frontend input → API call → FastAPI route
-→ LangGraph node-by-node execution (show each node's JSON output) → how the
-final state populates both the "Log Customer Complaint" form fields and the
-"AI Copilot Risk Assessment" panel. The clean separation between
-`extract_fields` (form data) and the later nodes (copilot panel) in
-`workflow.py` maps directly to that explanation.
+## ⚡ Quick Start Guide
+
+### 1. Prerequisites
+- Python 3.9+
+- Node.js 18+ & npm
+- Groq API Key (Optional — fallback rule engine active if omitted)
+
+### 2. Backend Setup
+```bash
+cd backend
+
+# Create & activate virtual environment
+python3 -m venv venv
+source venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Create environment configuration
+cp .env.example .env
+```
+
+Set your `.env` variables:
+```ini
+GROQ_API_KEY=your_groq_api_key_here
+GROQ_MODEL=gemma2-9b-it
+GROQ_MODEL_LARGE=llama-3.3-70b-versatile
+DATABASE_URL=postgresql+psycopg2://postgres:postgres@localhost:5432/aivoa_complaints
+CORS_ORIGINS=http://localhost:5173,http://localhost:3000
+```
+
+Start the backend server:
+```bash
+uvicorn app.main:app --reload --port 8000
+```
+Interactive API Swagger Docs will be available at: **http://localhost:8000/docs**.
+
+---
+
+### 3. Frontend Setup
+```bash
+cd frontend
+
+# Install packages
+npm install
+
+# Start Vite development server
+npm run dev
+```
+Open **http://localhost:5173** in your browser.
+
+---
+
+## 🧪 Verification & Test Suite
+
+Run the automated verification scripts inside the backend virtual environment:
+
+```bash
+source backend/venv/bin/activate
+
+# Test 1: Agent Tool Orchestration (log_complaint, document_extraction, edit_complaint)
+python3 scripts/test_agent_tools.py
+
+# Test 2: LangGraph 7-Node QMS Compliance & Risk Assessment Suite
+python3 scripts/test_correct_behavior.py
+```
+
+---
+
+## 🔌 API Endpoints Summary
+
+| Method | Path | Description |
+| :--- | :--- | :--- |
+| `POST` | `/api/complaints/from-text` | Process raw text complaint & log to QMS |
+| `POST` | `/api/complaints/from-file` | Extract PDF/email text & log complaint |
+| `POST` | `/api/complaints/copilot/chat` | Copilot natural language agent & tool dispatcher |
+| `POST` | `/api/complaints/copilot/chat-file` | Copilot file upload & tool pipeline |
+| `POST` | `/api/complaints/upload` | Form file/text upload endpoint |
+| `POST` | `/api/complaints/log-from-copilot` | Direct Copilot complaint logger endpoint |
+| `POST` | `/api/complaints/{id}/risk-assessment` | Re-run risk assessment on existing record |
+| `GET` | `/api/complaints` | Fetch list of all logged complaints |
+| `GET` | `/api/complaints/{id}` | Fetch detailed complaint record by ID |
+| `PUT` | `/api/complaints/{id}` | Update complaint fields |
+| `POST` | `/api/complaints/seed-samples` | Seed database with sample pharmaceutical complaints |

@@ -3,6 +3,7 @@ import { useSelector, useDispatch } from "react-redux";
 import {
   submitTextComplaint,
   submitFileComplaint,
+  sendCopilotMessage,
 } from "../store/complaintSlice.js";
 import { SAMPLE_COMPLAINTS } from "../data/sampleData.js";
 
@@ -25,51 +26,136 @@ export default function AICopilotPanel() {
   const [chatLog, setChatLog] = useState([]);
   const [isDragOver, setIsDragOver] = useState(false);
 
+  const [progressPct, setProgressPct] = useState(0);
+  const [progressSubtext, setProgressSubtext] = useState("Awaiting document upload or text paste to begin extraction.");
+
   const isLoading = status === "loading";
+
+  // Dynamic smooth progress animation during AI extraction
+  React.useEffect(() => {
+    let timer;
+    if (isLoading) {
+      setProgressPct(10);
+      setProgressSubtext("Node 1: Extracting origin, customer & drug product details...");
+
+      const steps = [
+        { pct: 25, text: "Node 1 & 2: Identifying product strength, batch & manufacturing date..." },
+        { pct: 40, text: "Node 2: Validating QMS record completeness & score..." },
+        { pct: 55, text: "Node 3: Scanning prior database records for duplicate batches..." },
+        { pct: 70, text: "Node 4: Classifying QMS risk severity & 21 CFR Field Alert status..." },
+        { pct: 85, text: "Node 5 & 6: Formulating 5M root cause & draft CAPA action plan..." },
+        { pct: 95, text: "Node 7: Finalizing executive summary & populating form fields..." },
+      ];
+
+      let idx = 0;
+      timer = setInterval(() => {
+        if (idx < steps.length) {
+          setProgressPct(steps[idx].pct);
+          setProgressSubtext(steps[idx].text);
+          idx++;
+        }
+      }, 500);
+    } else if (activeComplaint) {
+      setProgressPct(100);
+      setProgressSubtext("✓ Extraction & QMS risk assessment complete! Form fields populated.");
+    } else {
+      setProgressPct(0);
+      setProgressSubtext("Awaiting document upload or text paste to begin extraction.");
+    }
+
+    return () => {
+      if (timer) clearInterval(timer);
+    };
+  }, [isLoading, activeComplaint]);
 
   const handleFileUpload = (f) => {
     if (!f || isLoading) return;
-    dispatch(submitFileComplaint(f));
+    setChatLog((prev) => [...prev, { sender: "user", text: `Uploaded document: ${f.name}` }]);
+    dispatch(sendCopilotMessage({ file: f, activeComplaintId: activeComplaint?.id }))
+      .unwrap()
+      .then((res) => {
+        setChatLog((prev) => [
+          ...prev,
+          {
+            sender: "ai",
+            text: res.reply,
+            tool: res.tool_invoked,
+          },
+        ]);
+      })
+      .catch((err) => {
+        dispatch(submitFileComplaint(f));
+      });
   };
 
   const handlePasteSubmit = () => {
     if (!pasteText.trim() || isLoading) return;
-    dispatch(submitTextComplaint(pasteText));
+    const textToSubmit = pasteText;
     setShowPasteModal(false);
     setPasteText("");
+    setChatLog((prev) => [...prev, { sender: "user", text: `Submitted text: "${textToSubmit.slice(0, 80)}..." please log this complaint` }]);
+    
+    dispatch(sendCopilotMessage({ message: textToSubmit + " please log this complaint", activeComplaintId: activeComplaint?.id }))
+      .unwrap()
+      .then((res) => {
+        setChatLog((prev) => [
+          ...prev,
+          {
+            sender: "ai",
+            text: res.reply,
+            tool: res.tool_invoked,
+          },
+        ]);
+      })
+      .catch((err) => {
+        dispatch(submitTextComplaint(textToSubmit));
+      });
   };
 
   const handleRunPreset = (sample) => {
-    dispatch(submitTextComplaint(sample.text));
+    setChatLog((prev) => [...prev, { sender: "user", text: `Executing sample: ${sample.title}` }]);
+    dispatch(sendCopilotMessage({ message: sample.text + " please log this complaint", activeComplaintId: activeComplaint?.id }))
+      .unwrap()
+      .then((res) => {
+        setChatLog((prev) => [
+          ...prev,
+          {
+            sender: "ai",
+            text: res.reply,
+            tool: res.tool_invoked,
+          },
+        ]);
+      })
+      .catch((err) => {
+        dispatch(submitTextComplaint(sample.text));
+      });
   };
 
   const handleSendChat = (e) => {
     e.preventDefault();
-    if (!chatMessage.trim()) return;
+    if (!chatMessage.trim() || isLoading) return;
     
     const userMsg = chatMessage;
     setChatMessage("");
     
-    // Add user message
-    const newLogs = [...chatLog, { sender: "user", text: userMsg }];
-    setChatLog(newLogs);
+    setChatLog((prev) => [...prev, { sender: "user", text: userMsg }]);
 
-    // AI Response logic
-    setTimeout(() => {
-      let aiAns = "I have analyzed the complaint. ";
-      const msgLower = userMsg.toLowerCase();
-      if (msgLower.includes("risk") || msgLower.includes("severity")) {
-        aiAns += `The AI Risk Assessment classified this complaint as ${activeComplaint?.risk_classification?.level || activeComplaint?.severity || "Medium"} risk. ${activeComplaint?.risk_classification?.justification || ""}`;
-      } else if (msgLower.includes("root cause") || msgLower.includes("5m")) {
-        aiAns += `Likely 5M root cause categories are ${activeComplaint?.root_cause_suggestion?.likely_categories?.join(", ") || "Machine, Material"}. Reasoning: ${activeComplaint?.root_cause_suggestion?.reasoning || ""}`;
-      } else if (msgLower.includes("capa") || msgLower.includes("owner")) {
-        aiAns += `Suggested CAPA owner is ${activeComplaint?.capa_suggestion?.suggested_owner || "QA Compliance Lead"} with a target closure of ${activeComplaint?.capa_suggestion?.target_closure_days || 30} days.`;
-      } else {
-        aiAns += `This complaint regarding ${activeComplaint?.product_name || "the drug product"} (Batch #${activeComplaint?.batch_number || "N/A"}) has been triaged and recorded in the QMS database.`;
-      }
-
-      setChatLog([...newLogs, { sender: "ai", text: aiAns }]);
-    }, 600);
+    dispatch(sendCopilotMessage({ message: userMsg, activeComplaintId: activeComplaint?.id }))
+      .unwrap()
+      .then((res) => {
+        setChatLog((prev) => [
+          ...prev,
+          {
+            sender: "ai",
+            text: res.reply,
+            tool: res.tool_invoked,
+          },
+        ]);
+      })
+      .catch((err) => {
+        let aiAns = `Analyzing message regarding complaint #${activeComplaint?.id?.slice(0,8) || ''}.`;
+        setChatLog((prev) => [...prev, { sender: "ai", text: aiAns }]);
+      });
   };
 
   const c = activeComplaint;
@@ -144,21 +230,15 @@ export default function AICopilotPanel() {
       <div className="progress-section-spec">
         <div className="progress-label-row">
           <span className="progress-title">EXTRACTION PROGRESS</span>
-          <span className="progress-pct">{isLoading ? "45%" : c ? "100%" : "0%"}</span>
+          <span className="progress-pct">{progressPct}%</span>
         </div>
         <div className="progress-track-spec">
           <div
             className="progress-fill-spec"
-            style={{ width: isLoading ? "45%" : c ? "100%" : "0%" }}
+            style={{ width: `${progressPct}%` }}
           ></div>
         </div>
-        <p className="progress-subtext">
-          {isLoading
-            ? "Analyzing document content and extracting key details... Please wait, this may take a few moments."
-            : c
-            ? "Extraction & QMS risk assessment complete."
-            : "Awaiting document upload or text paste to begin extraction."}
-        </p>
+        <p className="progress-subtext">{progressSubtext}</p>
       </div>
 
       {/* AI Assistant Guidance & Risk Assessment Content */}
@@ -260,7 +340,14 @@ export default function AICopilotPanel() {
         <div className="chat-log-box">
           {chatLog.map((msg, i) => (
             <div key={i} className={`chat-bubble bubble-${msg.sender}`}>
-              <strong>{msg.sender === "user" ? "You" : "AI Copilot"}:</strong> {msg.text}
+              {msg.tool && (
+                <div className="tool-badge-pill">
+                  🔧 Tool Invoked: {msg.tool}
+                </div>
+              )}
+              <div>
+                <strong>{msg.sender === "user" ? "You" : "AI Copilot"}:</strong> {msg.text}
+              </div>
             </div>
           ))}
         </div>

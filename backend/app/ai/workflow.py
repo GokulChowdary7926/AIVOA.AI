@@ -68,23 +68,21 @@ def _fallback_extract(text: str) -> Dict[str, Any]:
     
     # Extract customer - return None if absent!
     customer = None
-    cust_match = re.search(r'(?:from|customer|hospital|pharmacy|clinic|client):\s*([^\n,.]+)', text, re.IGNORECASE)
-    if cust_match:
-        customer = cust_match.group(1).strip()
-    elif "st. jude" in lower:
+    if "st. jude" in lower or "st jude" in lower:
         customer = "St. Jude Children's Hospital"
     elif "cvs" in lower:
         customer = "CVS Health Pharmacy"
     elif "apex" in lower:
         customer = "Apex Pharma Distributors"
+    else:
+        cust_match = re.search(r'(?:customer|client|pharmacy|hospital)\s*[:=]\s*([^\n,]+)', text, re.IGNORECASE)
+        if cust_match:
+            customer = cust_match.group(1).strip()
 
     # Extract product & strength - return None if absent!
     product = None
     strength = None
-    prod_match = re.search(r'(?:product|drug|item|medication):\s*([^\n,.]+)', text, re.IGNORECASE)
-    if prod_match:
-        product = prod_match.group(1).strip()
-    elif "paclitaxel" in lower:
+    if "paclitaxel" in lower:
         product = "Paclitaxel Injection"
         strength = "6mg/mL (50mL)"
     elif "amoxicillin" in lower:
@@ -96,10 +94,14 @@ def _fallback_extract(text: str) -> Dict[str, Any]:
     elif "paracetamol" in lower:
         product = "Paracetamol Pediatric Syrup"
         strength = "120mg/5mL"
+    else:
+        prod_match = re.search(r'(?:product|drug|medication)\s*[:=]\s*([^\n,]+)', text, re.IGNORECASE)
+        if prod_match:
+            product = prod_match.group(1).strip()
 
     # Extract batch - return None if absent!
     batch = None
-    batch_match = re.search(r'(?:batch|lot)(?:\s*#|\s*number)?:\s*([A-Z0-9-]+)', text, re.IGNORECASE)
+    batch_match = re.search(r'(?:batch|lot)(?:\s*#|\s*number)?\s*[:#=]?\s*([A-Za-z0-9-]+)', text, re.IGNORECASE)
     if batch_match:
         batch = batch_match.group(1).strip()
 
@@ -128,11 +130,11 @@ def _fallback_extract(text: str) -> Dict[str, Any]:
     return {
         "customer_name": customer,
         "product_name": product,
-        "product_strength": strength or "USP Grade",
+        "product_strength": strength,
         "batch_number": batch,
-        "mfg_date": "2025-10-15",
-        "expiry_date": "2027-10-15",
-        "quantity_affected": "500 Units",
+        "mfg_date": None,
+        "expiry_date": None,
+        "quantity_affected": None,
         "complaint_type": c_type,
         "severity": severity,
         "priority": priority,
@@ -171,21 +173,21 @@ Return JSON with exactly these keys:
 customer_name, product_name, product_strength, batch_number, mfg_date, expiry_date, quantity_affected, complaint_type, severity, priority, complaint_description, complaint_date, regulatory_reportable, assigned_owner
 """
     result = call_llm_json(prompt)
-    if result.get("raw_fallback") or not result.get("complaint_description"):
+    if result.get("raw_fallback") or not result.get("complaint_description") or not result.get("product_name"):
         fallback = _fallback_extract(state.get("raw_text", ""))
         return {
-            "customer_name": result.get("customer_name") if "customer_name" in result else fallback["customer_name"],
-            "product_name": result.get("product_name") if "product_name" in result else fallback["product_name"],
-            "product_strength": result.get("product_strength") if "product_strength" in result else fallback["product_strength"],
-            "batch_number": result.get("batch_number") if "batch_number" in result else fallback["batch_number"],
-            "mfg_date": result.get("mfg_date") if "mfg_date" in result else fallback["mfg_date"],
-            "expiry_date": result.get("expiry_date") if "expiry_date" in result else fallback["expiry_date"],
-            "quantity_affected": result.get("quantity_affected") if "quantity_affected" in result else fallback["quantity_affected"],
+            "customer_name": result.get("customer_name") or fallback["customer_name"],
+            "product_name": result.get("product_name") or fallback["product_name"],
+            "product_strength": result.get("product_strength") or fallback["product_strength"],
+            "batch_number": result.get("batch_number") or fallback["batch_number"],
+            "mfg_date": result.get("mfg_date") or fallback["mfg_date"],
+            "expiry_date": result.get("expiry_date") or fallback["expiry_date"],
+            "quantity_affected": result.get("quantity_affected") or fallback["quantity_affected"],
             "complaint_type": result.get("complaint_type") or fallback["complaint_type"],
             "severity": result.get("severity") or fallback["severity"],
             "priority": result.get("priority") or fallback["priority"],
             "complaint_description": result.get("complaint_description") or fallback["complaint_description"],
-            "complaint_date": result.get("complaint_date") if "complaint_date" in result else fallback["complaint_date"],
+            "complaint_date": result.get("complaint_date") or fallback["complaint_date"],
             "regulatory_reportable": result.get("regulatory_reportable") if "regulatory_reportable" in result else fallback["regulatory_reportable"],
             "assigned_owner": result.get("assigned_owner") or fallback["assigned_owner"],
         }

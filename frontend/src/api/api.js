@@ -26,3 +26,23 @@ export const updateComplaint = (id, data) =>
 
 export const seedSampleComplaints = () =>
   axios.post(`${API_BASE}/api/complaints/seed-samples`).then((r) => r.data);
+
+export const sendCopilotChat = ({ message = "", file = null, activeComplaintId = null }) => {
+  if (file) {
+    const form = new FormData();
+    form.append("file", file);
+    if (message) form.append("message", message);
+    if (activeComplaintId) form.append("active_complaint_id", activeComplaintId);
+    return axios
+      .post(`${API_BASE}/api/complaints/copilot/chat-file`, form, {
+        headers: { "Content-Type": "multipart/form-data" },
+      })
+      .then((r) => r.data);
+  }
+  return axios
+    .post(`${API_BASE}/api/complaints/copilot/chat`, {
+      message,
+      active_complaint_id: activeComplaintId,
+    })
+    .then((r) => r.data);
+};

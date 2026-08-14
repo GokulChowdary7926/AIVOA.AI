@@ -5,6 +5,7 @@ import {
   listComplaints,
   updateComplaint,
   seedSampleComplaints,
+  sendCopilotChat,
 } from "../api/api.js";
 
 export const submitTextComplaint = createAsyncThunk(
@@ -15,6 +16,12 @@ export const submitTextComplaint = createAsyncThunk(
 export const submitFileComplaint = createAsyncThunk(
   "complaints/submitFile",
   async (file) => submitComplaintFile(file)
+);
+
+export const sendCopilotMessage = createAsyncThunk(
+  "complaints/sendCopilotMessage",
+  async ({ message, file, activeComplaintId }) =>
+    sendCopilotChat({ message, file, activeComplaintId })
 );
 
 export const fetchComplaints = createAsyncThunk(
@@ -92,6 +99,29 @@ const complaintSlice = createSlice({
         state.items.unshift(action.payload);
       })
       .addCase(submitFileComplaint.rejected, (state, action) => {
+        state.status = "failed";
+        state.activeStep = 0;
+        state.error = action.error.message;
+      })
+      .addCase(sendCopilotMessage.pending, (state) => {
+        state.status = "loading";
+        state.activeStep = 1;
+        state.error = null;
+      })
+      .addCase(sendCopilotMessage.fulfilled, (state, action) => {
+        state.status = "succeeded";
+        state.activeStep = 7;
+        if (action.payload.active_complaint) {
+          state.activeComplaint = action.payload.active_complaint;
+          const idx = state.items.findIndex((i) => i.id === action.payload.active_complaint.id);
+          if (idx >= 0) {
+            state.items[idx] = action.payload.active_complaint;
+          } else {
+            state.items.unshift(action.payload.active_complaint);
+          }
+        }
+      })
+      .addCase(sendCopilotMessage.rejected, (state, action) => {
         state.status = "failed";
         state.activeStep = 0;
         state.error = action.error.message;

@@ -26,7 +26,7 @@ export default function ComplaintDetailModal() {
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <div>
-            <h2>Complaint Record #{c.id?.slice(0, 8)}</h2>
+            <h2>Complaint Record {c.complaint_number || `#${c.id?.slice(0, 8)}`}</h2>
             <span className="subtitle-tag">Logged on {new Date(c.created_at || Date.now()).toLocaleString()}</span>
           </div>
           <button className="close-btn" onClick={() => dispatch(setSelectedComplaint(null))}>✕</button>

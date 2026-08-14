@@ -119,7 +119,7 @@ export default function ComplaintList() {
                 return (
                   <tr key={c.id} className={isActive ? "active-row" : ""}>
                     <td>
-                      <code className="id-code">#{c.id?.slice(0, 6)}</code>
+                      <code className="id-code">{c.complaint_number || `#${c.id?.slice(0, 6)}`}</code>
                     </td>
                     <td>
                       <strong>{c.product_name || "Unknown Product"}</strong>

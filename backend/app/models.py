@@ -12,6 +12,7 @@ class Complaint(Base):
     __tablename__ = "complaints"
 
     id = Column(String(36), primary_key=True, default=gen_uuid)
+    complaint_number = Column(String(50))  # e.g. "CMP-2026-0842"
 
     # Raw input
     source_type = Column(String(20))       # "text" | "pdf" | "email"
@@ -20,7 +21,7 @@ class Complaint(Base):
     # Extracted / logged fields (populate "Log Customer Complaint" form)
     customer_name = Column(String(255))
     product_name = Column(String(255))
-    product_strength = Column(String(100)) # e.g. 6mg/mL, 500mg USP
+    product_strength = Column(String(100))  # e.g. 6mg/mL, 500mg USP
     batch_number = Column(String(100))
     mfg_date = Column(String(50))
     expiry_date = Column(String(50))
@@ -33,7 +34,7 @@ class Complaint(Base):
     regulatory_reportable = Column(Boolean, default=False)
     attachments = Column(String(255))
     assigned_owner = Column(String(100))
-    date_received = Column(DateTime, default=datetime.datetime.utcnow)
+    date_received = Column(DateTime, default=lambda: datetime.datetime.now(datetime.timezone.utc))
 
     # AI Copilot outputs
     completeness_score = Column(JSON)      # {"score": 80, "missing_fields": [...], "notes": "..."}
@@ -44,5 +45,6 @@ class Complaint(Base):
     ai_summary = Column(Text)
 
     status = Column(String(50), default="Open")  # Open | Under Investigation | CAPA In Progress | Closed
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.datetime.now(datetime.timezone.utc))
+    updated_at = Column(DateTime, default=lambda: datetime.datetime.now(datetime.timezone.utc), onupdate=lambda: datetime.datetime.now(datetime.timezone.utc))
 

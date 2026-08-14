@@ -1,13 +1,12 @@
-from fastapi import APIRouter, Depends, UploadFile, File, HTTPException
+from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, Form
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
-from typing import List
-from pypdf import PdfReader
-import io
+from typing import List, Optional
 
 from app.database import get_db
 from app import models, schemas
 from app.ai.workflow import run_complaint_pipeline
+from app.ai.agent import process_copilot_request, document_extraction
 
 router = APIRouter(prefix="/api/complaints", tags=["complaints"])
 
@@ -76,20 +75,8 @@ def create_from_text(payload: schemas.ComplaintTextIn, db: Session = Depends(get
 @router.post("/from-file", response_model=schemas.ComplaintOut)
 async def create_from_file(file: UploadFile = File(...), db: Session = Depends(get_db)):
     content = await file.read()
-    file_name = file.filename
-
-    if file_name.lower().endswith(".pdf"):
-        try:
-            reader = PdfReader(io.BytesIO(content))
-            raw_text = "\n".join(page.extract_text() or "" for page in reader.pages)
-            source_type = "pdf"
-        except Exception:
-            raw_text = content.decode("utf-8", errors="ignore")
-            source_type = "pdf"
-    else:
-        # treat as plain text / email export
-        raw_text = content.decode("utf-8", errors="ignore")
-        source_type = "email"
+    file_name = file.filename or "upload.txt"
+    raw_text, source_type = document_extraction(content, file_name)
 
     if not raw_text.strip():
         raise HTTPException(400, "Could not extract any text from the uploaded file")
@@ -150,3 +137,82 @@ def seed_samples(db: Session = Depends(get_db)):
         created.append(c)
 
     return created
+
+
+@router.post("/upload", response_model=schemas.ComplaintOut)
+async def upload_complaint(
+    file: Optional[UploadFile] = File(None),
+    user_command: str = Form(""),
+    db: Session = Depends(get_db)
+):
+    file_bytes = None
+    filename = None
+    if file:
+        file_bytes = await file.read()
+        filename = file.filename
+
+    res = process_copilot_request(
+        message=user_command or "Log this complaint",
+        db=db,
+        file_bytes=file_bytes,
+        filename=filename
+    )
+    if res.get("active_complaint"):
+        return res["active_complaint"]
+    raise HTTPException(400, "Failed to log complaint from upload")
+
+
+@router.post("/log-from-copilot", response_model=schemas.ComplaintOut)
+async def log_from_copilot(
+    file: Optional[UploadFile] = File(None),
+    user_command: str = Form(""),
+    db: Session = Depends(get_db)
+):
+    return await upload_complaint(file=file, user_command=user_command, db=db)
+
+
+@router.post("/{complaint_id}/risk-assessment", response_model=schemas.ComplaintOut)
+def run_risk_assessment_endpoint(complaint_id: str, db: Session = Depends(get_db)):
+    complaint = db.query(models.Complaint).filter(models.Complaint.id == complaint_id).first()
+    if not complaint:
+        raise HTTPException(404, "Complaint not found")
+
+    existing = _existing_complaints_for_context(db)
+    result = run_complaint_pipeline(complaint.raw_text or complaint.complaint_description or "", existing)
+
+    complaint.risk_classification = result.get("risk_classification")
+    if result.get("severity"):
+        complaint.severity = result.get("severity")
+    complaint.root_cause_suggestion = result.get("root_cause_suggestion")
+    complaint.capa_suggestion = result.get("capa_suggestion")
+    complaint.completeness_score = result.get("completeness_score")
+
+    db.commit()
+    db.refresh(complaint)
+    return complaint
+
+
+@router.post("/copilot/chat", response_model=schemas.CopilotChatOut)
+def copilot_chat(payload: schemas.CopilotChatIn, db: Session = Depends(get_db)):
+    return process_copilot_request(
+        message=payload.message,
+        db=db,
+        active_complaint_id=payload.active_complaint_id,
+    )
+
+
+@router.post("/copilot/chat-file", response_model=schemas.CopilotChatOut)
+async def copilot_chat_file(
+    message: Optional[str] = Form(""),
+    active_complaint_id: Optional[str] = Form(None),
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db)
+):
+    content = await file.read()
+    return process_copilot_request(
+        message=message or "",
+        db=db,
+        file_bytes=content,
+        filename=file.filename,
+        active_complaint_id=active_complaint_id,
+    )

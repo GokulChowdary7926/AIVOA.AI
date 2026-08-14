@@ -27,6 +27,7 @@ class ComplaintUpdateIn(BaseModel):
 
 class ComplaintOut(BaseModel):
     id: str
+    complaint_number: Optional[str] = None
     source_type: Optional[str]
     raw_text: Optional[str]
     customer_name: Optional[str]
@@ -54,7 +55,26 @@ class ComplaintOut(BaseModel):
     ai_summary: Optional[str]
     status: str
     created_at: Optional[datetime.datetime]
+    updated_at: Optional[datetime.datetime] = None
 
     class Config:
         from_attributes = True
+
+    @classmethod
+    def from_orm(cls, obj: Any) -> "ComplaintOut":
+        if hasattr(cls, "model_validate"):
+            return cls.model_validate(obj)
+        return super().from_orm(obj)
+
+
+class CopilotChatIn(BaseModel):
+    message: str
+    active_complaint_id: Optional[str] = None
+
+
+class CopilotChatOut(BaseModel):
+    tool_invoked: Optional[str] = None
+    reply: str
+    active_complaint: Optional[ComplaintOut] = None
+    patched_fields: Optional[List[str]] = []
 

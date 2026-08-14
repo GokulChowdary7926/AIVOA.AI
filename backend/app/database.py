@@ -1,3 +1,4 @@
+from pathlib import Path
 import logging
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
@@ -11,9 +12,9 @@ try:
     # Test connection
     with engine.connect() as conn:
         pass
-except Exception as e:
-    logger.warning(f"Could not connect to primary DATABASE_URL ({db_url}): {e}. Falling back to local SQLite database.")
-    db_url = "sqlite:///./aivoa_complaints.db"
+except Exception:
+    sqlite_path = Path(__file__).resolve().parent.parent / "aivoa_complaints.db"
+    db_url = f"sqlite:///{sqlite_path}"
     engine = create_engine(db_url, connect_args={"check_same_thread": False})
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

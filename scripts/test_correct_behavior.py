@@ -5,7 +5,8 @@ import os
 # Add backend to path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../backend")))
 
-from app.ai.workflow import run_complaint_pipeline
+from app.ai.workflow import run_complaint_pipeline  # noqa: E402
+
 
 def run_tests():
     print("=========================================================")
@@ -90,6 +91,7 @@ def run_tests():
     print("=========================================================")
     print("ALL 7 CORRECT BEHAVIOR SPEC SUITE TESTS PASSED 100%!")
     print("=========================================================")
+
 
 if __name__ == "__main__":
     run_tests()
