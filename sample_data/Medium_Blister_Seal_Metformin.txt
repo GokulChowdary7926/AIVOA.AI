@@ -1,0 +1,13 @@
+CUSTOMER COMPLAINT RECORD
+-------------------------
+Customer: Apex Pharma Distributors
+Date: August 09, 2026
+Product: Metformin ER 500mg Extended Release Tablets
+Batch Number: PK-8810
+
+Defect Details:
+Warehouse receiving inspection reported incomplete heat sealing on push-through aluminium blister foil strips (Carton Box 14 of 50). 
+
+Multiple tablet pockets showed unsealed margins, leading to tablet exposure and minor surface discoloration due to atmospheric moisture absorption. No patient harm reported; product retained prior to distribution.
+
+Requesting return authorization and root cause investigation on blister line sealing station temperature calibration.

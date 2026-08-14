@@ -17,3 +17,12 @@ export const submitComplaintFile = (file) => {
 
 export const listComplaints = () =>
   axios.get(`${API_BASE}/api/complaints`).then((r) => r.data);
+
+export const getComplaint = (id) =>
+  axios.get(`${API_BASE}/api/complaints/${id}`).then((r) => r.data);
+
+export const updateComplaint = (id, data) =>
+  axios.put(`${API_BASE}/api/complaints/${id}`, data).then((r) => r.data);
+
+export const seedSampleComplaints = () =>
+  axios.post(`${API_BASE}/api/complaints/seed-samples`).then((r) => r.data);

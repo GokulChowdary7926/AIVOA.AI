@@ -1,0 +1,21 @@
+COMPLAINT INTAKE REPORT — PHARMACEUTICAL QUALITY MANAGEMENT SYSTEM
+------------------------------------------------------------------
+Customer / Institution: St. Jude Children's Research Hospital (Pharmacy Operations)
+Date of Incident: August 12, 2026
+Reported By: Dr. Eleanor Vance, PharmD (Chief Hospital Pharmacist)
+
+PRODUCT DETAILS:
+- Brand/Generic Name: Paclitaxel Injection USP 6mg/mL (50mL Single-Dose Vial)
+- Batch/Lot Number: AZ-9041
+- Expiration Date: 10/2027
+- NDC Number: 0781-2241-50
+
+INCIDENT DESCRIPTION & DEFECT DETAILS:
+During pre-infusion sterile admixture preparation in the oncology pharmacy cleanroom (Class 100 / ISO 5 suite), pharmacy staff observed dark, particulate matter floating inside sealed sterile glass vial #084 of Batch #AZ-9041. 
+
+Visual inspection under high-intensity polarized inspection light confirmed multiple black, fiber-like particulate strands measuring approximately 1-2 mm in length suspended in the solution. 
+
+The vial was immediately quarantined. Infusion was halted for Patient ID #SJ-884102. Retention sample inspection of remaining 4 vials from the same shipment box revealed 1 additional vial (#087) containing similar dark specks near the stopper seal.
+
+IMPACT & SAFETY RISK:
+High potential parenteral hazard if infused. Parenteral administration of particulate matter can cause pulmonary microembolism, phlebitis, or localized tissue reaction. Immediate batch quarantine and 15-day FDA Field Alert notification recommended under 21 CFR 211.198.
