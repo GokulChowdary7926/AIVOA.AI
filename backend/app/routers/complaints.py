@@ -78,7 +78,7 @@ async def create_from_file(file: UploadFile = File(...), db: Session = Depends(g
             reader = PdfReader(io.BytesIO(content))
             raw_text = "\n".join(page.extract_text() or "" for page in reader.pages)
             source_type = "pdf"
-        except Exception as e:
+        except Exception:
             raw_text = content.decode("utf-8", errors="ignore")
             source_type = "pdf"
     else:
